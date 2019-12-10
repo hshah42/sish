@@ -8,12 +8,17 @@
 #include <errno.h>
 #include <signal.h>
 #include <pwd.h>
+#include  <setjmp.h>
 
 #include "sish.h"
+
+jmp_buf  JumpBuffer;
 
 void
 handle_sig_int(__attribute__((unused)) int signal) {
 	/* Do nothing when we get interrupt signal */
+    fprintf(stdout, "\n");
+    (void) longjmp(JumpBuffer, 1);
     return;
 }
 
@@ -64,7 +69,7 @@ main (int argc, char **argv) {
             print_error("Could not register signal", 1);
 		    return 1;
 	    }
-
+        (void) setjmp(JumpBuffer);
         while (exit == 0) {
             fprintf(stdout, "%s$ ", getprogname());
             if (getline(&input_command, &input_size_max, stdin) == -1) {
