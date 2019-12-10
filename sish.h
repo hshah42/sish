@@ -19,3 +19,6 @@ void handle_sig_int(int signal);
 
 int get_token_count(char *command);
 int perform_directory_change(char *directory);
+int perform_echo(char **tokens, int token_count, int command_length);
+
+unsigned int get_number_of_digits(int number);

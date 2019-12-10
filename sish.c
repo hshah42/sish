@@ -113,13 +113,15 @@ strip_new_line(char *input) {
 void
 execute_command(char *command) {
     char *last, *token, **tokens, *command_copy;
-    int token_count, index, status;
-
+    int token_count, index, status, command_length;
+    
     index = 0;
 
-    if (strlen(command) == 1 && command[0] == '\0') {
+    if (strlen(command) < 1 && command[0] == '\0') {
         return;
     }
+
+    command_length = strlen(command);
 
     if ((token_count = get_token_count(command)) < 0) {
         print_error("Could not allocate memory", 1);
@@ -151,10 +153,6 @@ execute_command(char *command) {
         index++;
     }
 
-    for (index = 0; index < token_count; index++) {
-        printf("Input: %s\n", tokens[index]);
-    }
-
     if (strcmp(tokens[0], "cd") == 0) {
         if (token_count == 1) {
             status = perform_directory_change(NULL);
@@ -162,7 +160,9 @@ execute_command(char *command) {
             status = perform_directory_change(tokens[1]);
         }
         previous_exit_code = status;
-        printf("%i\n", previous_exit_code);
+    } else if (strcmp(tokens[0], "echo") == 0) {
+        status = perform_echo(tokens, token_count, command_length);
+        previous_exit_code = status;
     }
 
     (void) free(tokens);
@@ -197,6 +197,12 @@ get_token_count(char *command) {
     return token_count;
 }
 
+/**
+ * Changes the directory based on the input. This will return the status based on
+ * success of failure which can be used for '$' inputs in echo command. If null is
+ * passed then the home directory is fetched of the user and then chdir into the 
+ * home directory.
+ **/
 int
 perform_directory_change(char *directory) {
     uid_t current_user;
@@ -223,6 +229,84 @@ perform_directory_change(char *directory) {
     return 0;
 }
 
+/**
+ * echo like feature is performed on the tokens [1..n-1]
+ * $$ and $? are replaces with pid and previous_exit_code respectively.
+ **/
+int
+perform_echo(char **tokens, int token_count, int command_length) {
+    char *echo_string, *pid_string, *exit_status_string;
+    int index, total_output_length, temp_length;
+    pid_t current_pid;
+
+    total_output_length = command_length;
+    current_pid = getpid();
+
+    for (index = 1; index < token_count; index++) {
+        temp_length = 0;
+        if (strcmp(tokens[index], "$$") == 0) {
+            total_output_length -= 2;
+            temp_length = get_number_of_digits(current_pid) + 1;
+            
+            if ((pid_string = malloc(temp_length)) == NULL) {
+                print_error("cd: Could not allocate memory", 0);
+                return 127;
+            }
+
+            if (snprintf(pid_string, temp_length, "%i", current_pid) < 0) {
+                print_error("cd: ", 0);
+                return 127;
+            }
+        } else if (strcmp(tokens[index], "$?") == 0) {
+            total_output_length -= 2;
+            temp_length = get_number_of_digits(previous_exit_code) + 1;
+
+             if ((exit_status_string = malloc(temp_length)) == NULL) {
+                print_error("cd: Could not allocate memory", 0);
+                return 127;
+            }
+
+            if (snprintf(exit_status_string, temp_length, "%i", previous_exit_code) < 0) {
+                print_error("cd: ", 0);
+                return 127;
+            }
+        }
+        total_output_length += temp_length;
+    }
+
+    if ((echo_string = malloc(total_output_length + 1)) == NULL) {
+        print_error("cd: Could not allocate memory", 0);
+        return 127;
+    }
+
+    echo_string[0] = '\0';
+
+    for (index = 1; index < token_count; index++) {
+        if (index > 0) {
+            if (strcat(echo_string, " ") == NULL) {
+                print_error("cd: Internal error: ", 0);
+            }
+        }
+
+        if (strcmp(tokens[index], "$$") == 0) {
+            if (strcat(echo_string, pid_string) == NULL) {
+                print_error("cd: Internal error: ", 0);
+            }
+        } else if (strcmp(tokens[index], "$?") == 0) {
+            if (strcat(echo_string, exit_status_string) == NULL) {
+                print_error("cd: Internal error: ", 0);
+            }
+        } else {
+            if (strcat(echo_string, tokens[index]) == NULL) {
+                print_error("cd: Internal error: ", 0);
+            }
+        }
+    }
+
+    fprintf(stdout, "%s\n", echo_string);
+    return 0;   
+}
+
 void
 print_error(char *message, int include_prog_name) {
     if (include_prog_name) {
@@ -230,4 +314,23 @@ print_error(char *message, int include_prog_name) {
     } else {
         fprintf(stderr, "%s: %s\n", message, strerror(errno));
     }
+}
+
+/**
+ * Calculates the number of digits present in the number.
+ * This will not work with negative numbers.
+ **/
+unsigned int
+get_number_of_digits(int number) {
+    unsigned int count;
+    if (number == 0) {
+        return 1;
+    }
+    count = 0;
+    while (number != 0) {
+        number = number / 10;
+        count++;
+    }
+
+    return count;
 }
