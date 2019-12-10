@@ -31,7 +31,10 @@ main (int argc, char **argv) {
         switch (case_identifier) {
         case 'c':
             input_flags.c_flag = 1;
-            input_command = optarg;
+            if ((input_command = strdup(optarg)) == NULL) {
+                print_error("Could not allocate memory");
+                return 1;
+            }
             break;
         case 'x':
             input_flags.x_flag = 1;
@@ -45,7 +48,7 @@ main (int argc, char **argv) {
     }
 
     if (input_flags.c_flag) {
-        printf("execute command: %s\n", input_command);
+        (void) execute_command(input_command);
     } else {
         while (exit == 0) {
             fprintf(stdout, "%s$ ", getprogname());
