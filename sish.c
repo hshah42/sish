@@ -1,3 +1,5 @@
+#include <sys/wait.h>
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -159,11 +161,13 @@ execute_command(char *command) {
         } else {
             status = perform_directory_change(tokens[1]);
         }
-        previous_exit_code = status;
     } else if (strcmp(tokens[0], "echo") == 0) {
         status = perform_echo(tokens, token_count, command_length);
-        previous_exit_code = status;
+    } else {
+        status = perform_exec(command);
     }
+
+     previous_exit_code = status;
 
     (void) free(tokens);
     (void) free(command_copy);
@@ -321,6 +325,101 @@ perform_echo(char **tokens, int token_count, int command_length) {
 
     fprintf(stdout, "%s\n", echo_string);
     return 0;   
+}
+
+int
+perform_exec(char *command) {
+    char *args[4];
+    int output_pipe[2], error_pipe[2], content, status;
+    pid_t child_pid;
+    char *output_buffer, *error_buffer;
+    char *output_store, *error_store;
+
+    args[0] = "runcommand";
+    args[1] = "-c";
+
+    status = 0;
+    
+    if ((args[2] = strdup(command)) == NULL) {
+        print_error("Could not allocate memory: ", 1);
+        return 127;
+    }
+
+    args[3] = '\0';
+
+    if (pipe(output_pipe) < 0 || pipe(error_pipe) < 0) {
+        print_error("Could not create a pipe: ", 1);
+        return 127;
+    }
+
+    if ((child_pid = fork()) < 0) {
+        print_error("Could not create new process: ", 1);
+        return 127;
+    } else if (child_pid == 0) {
+        (void) close(output_pipe[0]);
+        (void) close(error_pipe[0]);
+
+        if (output_pipe[1] != STDOUT_FILENO) {
+            if (dup2(output_pipe[1], STDOUT_FILENO) != STDOUT_FILENO) {
+                fprintf(stderr, "Could not duplicate fd: %s \n", strerror(errno));
+                exit(127);
+            }
+        }
+
+        if (error_pipe[1] != STDERR_FILENO) {
+            if (dup2(error_pipe[1], STDERR_FILENO) != STDERR_FILENO) {
+                fprintf(stderr, "Could not duplicate fd: %s \n", strerror(errno));
+                exit(127);
+            }
+        }
+
+        execvp("/bin/sh", args);
+        
+        fprintf(stderr, "Could execute command: %s \n", strerror(errno));
+        return 127;
+    } else {
+        (void) close(output_pipe[1]);
+        (void) close(error_pipe[1]);
+
+        (void) waitpid(child_pid, &status, 0);
+
+        if ((output_buffer = malloc(BUFFERSIZE)) == NULL ||
+            (error_buffer = malloc(BUFFERSIZE)) == NULL  ||
+            (output_store = malloc(BUFFERSIZE)) == NULL  ||
+            (error_store = malloc(BUFFERSIZE)) == NULL) {
+            print_error("Could not allocate space: ", 1);
+            return 127;
+        }
+
+        while ((content = read(output_pipe[0], output_store, BUFFERSIZE)) > 0) {
+            if (strlcat(output_buffer, output_store, BUFFERSIZE) > BUFFERSIZE) {
+                print_error("Internal error: ", 0);
+                return 127;
+            }
+            (void) bzero(output_store, strlen(output_store));
+        }
+
+        while ((content = read(error_pipe[0], error_store, BUFFERSIZE)) > 0) {
+           if (strlcat(error_buffer, error_store, BUFFERSIZE) > BUFFERSIZE) {
+                print_error("Internal error: ", 0);
+                return 127;
+           }
+           (void) bzero(error_store, strlen(error_store));
+        }
+
+        (void) close(output_pipe[0]);
+        (void) close(error_pipe[0]);
+    }
+
+    if (status == 0) {
+        (void) strip_new_line(output_buffer);
+        fprintf(stdout, "%s\n", output_buffer);
+    } else {
+        (void) strip_new_line(error_buffer);
+        fprintf(stderr, "%s\n", error_buffer);
+    }
+
+    return status;
 }
 
 void
