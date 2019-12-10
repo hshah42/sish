@@ -57,11 +57,11 @@ main (int argc, char **argv) {
             /* getline also includes the '\n' at the end, hence we replace it by null*/
             (void) strip_new_line(input_command);
 
-            printf("execute command: %s\n", input_command);
-
             if (strcmp(input_command, "exit") == 0) {
                 break;
             }
+
+            (void) execute_command(input_command);
         }
     }
 
@@ -91,8 +91,10 @@ strip_new_line(char *input) {
  **/
 void
 execute_command(char *command) {
-    char *last, *token, **tokens, command_copy;
-    int token_count;
+    char *last, *token, **tokens, *command_copy;
+    int token_count, index;
+
+    index = 0;
 
     if ((token_count = get_token_count(command)) < 0) {
         print_error("Could not allocate memory");
@@ -109,6 +111,23 @@ execute_command(char *command) {
         return;
     }
 
+    token = strtok_r(command_copy, " ", &last);
+
+    while (token != NULL) {
+        if ((tokens[index] = strdup(token)) == NULL) {
+            print_error("Could not allocate memory");
+            return;
+        }
+        token = strtok_r(NULL, " ", &last);
+        index++;
+    }
+
+    for (index = 0; index < token_count; index++) {
+        printf("Input: %s\n", tokens[index]);
+    }
+
+    (void) free(tokens);
+    (void) free(command_copy);
 }
 
 int
