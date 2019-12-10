@@ -329,6 +329,11 @@ perform_echo(char **tokens, int token_count, int command_length) {
     return 0;   
 }
 
+/**
+ * perform_exec executes the command which should be at the 0
+ * position of the tokens array. It passes tokens as the args as 
+ * it is.
+ **/
 int
 perform_exec(char **tokens) {
     int output_pipe[2], error_pipe[2], content, status;
@@ -414,6 +419,8 @@ perform_exec(char **tokens) {
 
     (void) free(error_store);
     (void) free(output_store);
+    (void) free(output_buffer);
+    (void) free(error_buffer);
 
     return status;
 }
