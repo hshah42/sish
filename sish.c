@@ -23,8 +23,7 @@ main (int argc, char **argv) {
     input_flags.x_flag = 0;
 
     if ((input_command = malloc(ARG_MAX)) == NULL) {
-        fprintf(stderr, "%s: Could not allocate memory: %s", 
-                getprogname(), strerror(errno));
+        print_error("Could not allocate memory");
         return 1;
     }
 
@@ -51,7 +50,7 @@ main (int argc, char **argv) {
         while (exit == 0) {
             fprintf(stdout, "%s$ ", getprogname());
             if (getline(&input_command, &input_size_max, stdin) == -1) {
-                fprintf(stderr, "%s: Could not get input: %s", strerror(errno));
+                print_error("Could not get input");
                 return 1;
             }
 
@@ -92,7 +91,23 @@ strip_new_line(char *input) {
  **/
 void
 execute_command(char *command) {
-    char *last, *token;
+    char *last, *token, **tokens, command_copy;
+    int token_count;
+
+    if ((token_count = get_token_count(command)) < 0) {
+        print_error("Could not allocate memory");
+        return;
+    }
+
+    if ((tokens = malloc(token_count * sizeof(char *))) == NULL) {
+        print_error("Could not allocate memory");
+        return;
+    }
+
+    if ((command_copy = strdup(command)) == NULL) {
+        print_error("Could not allocate memory");
+        return;
+    }
 
 }
 
@@ -105,7 +120,6 @@ get_token_count(char *command) {
 
     /* String duplication is required as strtok modifies the orignal string */
     if ((command_copy = strdup(command)) == NULL) {
-        fprintf(stderr, "%s: Could not allocate memory: %s", strerror(errno));
         return -1;
     }
 
@@ -118,4 +132,9 @@ get_token_count(char *command) {
 
     (void) free(command_copy);
     return token_count;
+}
+
+void
+print_error(char *message) {
+    fprintf(stderr, "%s: %s: %s", getprogname(), message, strerror(errno));
 }
