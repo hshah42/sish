@@ -415,6 +415,10 @@ perform_exec(char **tokens) {
         (void) close(error_pipe[0]);
     }
 
+    if (WIFEXITED(status)) {
+        status = WEXITSTATUS(status);
+    }
+
     if (status == 0) {
         (void) strip_new_line(output_buffer);
         if (strlen(output_buffer) > 0) {
