@@ -131,7 +131,7 @@ execute_command(char *command) {
         return;
     }
 
-    if ((tokens = malloc(token_count * sizeof(char *))) == NULL) {
+    if ((tokens = malloc((token_count * sizeof(char *)) + 1)) == NULL) {
         print_error("Could not allocate memory", 1);
         previous_exit_code = 127;
         return;
@@ -155,6 +155,8 @@ execute_command(char *command) {
         index++;
     }
 
+    tokens[index] = '\0';
+
     if (strcmp(tokens[0], "cd") == 0) {
         if (token_count == 1) {
             status = perform_directory_change(NULL);
@@ -164,7 +166,7 @@ execute_command(char *command) {
     } else if (strcmp(tokens[0], "echo") == 0) {
         status = perform_echo(tokens, token_count, command_length);
     } else {
-        status = perform_exec(command);
+        status = perform_exec(tokens);
     }
 
      previous_exit_code = status;
@@ -328,24 +330,11 @@ perform_echo(char **tokens, int token_count, int command_length) {
 }
 
 int
-perform_exec(char *command) {
-    char *args[4];
+perform_exec(char **tokens) {
     int output_pipe[2], error_pipe[2], content, status;
     pid_t child_pid;
     char *output_buffer, *error_buffer;
     char *output_store, *error_store;
-
-    args[0] = "runcommand";
-    args[1] = "-c";
-
-    status = 0;
-    
-    if ((args[2] = strdup(command)) == NULL) {
-        print_error("Could not allocate memory: ", 1);
-        return 127;
-    }
-
-    args[3] = '\0';
 
     if (pipe(output_pipe) < 0 || pipe(error_pipe) < 0) {
         print_error("Could not create a pipe: ", 1);
@@ -373,14 +362,14 @@ perform_exec(char *command) {
             }
         }
 
-        execvp("/bin/sh", args);
+        execvp(tokens[0], tokens);
         
         fprintf(stderr, "Could execute command: %s \n", strerror(errno));
-        return 127;
+        exit(127);
     } else {
         (void) close(output_pipe[1]);
         (void) close(error_pipe[1]);
-
+        
         (void) waitpid(child_pid, &status, 0);
 
         if ((output_buffer = malloc(BUFFERSIZE)) == NULL ||
@@ -413,11 +402,18 @@ perform_exec(char *command) {
 
     if (status == 0) {
         (void) strip_new_line(output_buffer);
-        fprintf(stdout, "%s\n", output_buffer);
+        if (strlen(output_buffer) > 0) {
+             fprintf(stdout, "%s\n", output_buffer);
+        }
     } else {
         (void) strip_new_line(error_buffer);
-        fprintf(stderr, "%s\n", error_buffer);
+        if (strlen(error_buffer) > 0) {
+             fprintf(stdout, "%s\n", error_buffer);
+        }
     }
+
+    (void) free(error_store);
+    (void) free(output_store);
 
     return status;
 }
