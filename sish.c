@@ -4,8 +4,15 @@
 #include <string.h>
 #include <limits.h>
 #include <errno.h>
+#include <signal.h>
 
 #include "sish.h"
+
+void
+handle_sig_int(__attribute__((unused)) int signal) {
+	/* Do nothing when we get interrupt signal */
+    return;
+}
 
 int
 main (int argc, char **argv) {
@@ -50,6 +57,11 @@ main (int argc, char **argv) {
     if (input_flags.c_flag) {
         (void) execute_command(input_command);
     } else {
+        if (signal(SIGINT, handle_sig_int) == SIG_ERR) {
+            print_error("Could not register signal");
+		    return 1;
+	    }
+
         while (exit == 0) {
             fprintf(stdout, "%s$ ", getprogname());
             if (getline(&input_command, &input_size_max, stdin) == -1) {
@@ -138,6 +150,11 @@ execute_command(char *command) {
     (void) free(command_copy);
 }
 
+/**
+ * get_token_count gets the number of tokens
+ * present in the input that are seperated by the
+ * space delimiter.
+ **/
 int
 get_token_count(char *command) {
     char *last, *token, *command_copy;
