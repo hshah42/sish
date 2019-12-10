@@ -374,7 +374,12 @@ perform_exec(char **tokens) {
 
         execvp(tokens[0], tokens);
         
-        fprintf(stderr, "Could execute command: %s \n", strerror(errno));
+        if (errno == ENOENT) {
+            fprintf(stderr, "%s: not found \n", tokens[0]);
+        } else {
+            fprintf(stderr, "%s: %s \n", tokens[0], strerror(errno));
+        }
+
         exit(127);
     } else {
         (void) close(output_pipe[1]);
