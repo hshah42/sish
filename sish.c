@@ -78,6 +78,11 @@ print_usage() {
     fprintf(stderr, "%s: Usage: sish [-c command] [-x]\n", getprogname());
 }
 
+/**
+ * strip_new_line will remove the '\n' at the end of the string. getline includes
+ * '\n' which is not the user command but due to pressing enter to execute the command.
+ * Hence we need to strip it before performing further processing on the input.
+ **/
 void
 strip_new_line(char *input) {
     int input_length;
