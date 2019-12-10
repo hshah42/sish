@@ -236,12 +236,16 @@ perform_directory_change(char *directory) {
 int
 perform_echo(char **tokens, int token_count, int command_length) {
     char *echo_string, *pid_string, *exit_status_string;
-    int index, total_output_length, temp_length;
+    int index, total_output_length, temp_length, free_pid, free_exit;
     pid_t current_pid;
 
     total_output_length = command_length;
     current_pid = getpid();
+    free_pid = 0;
+    free_exit = 0;
 
+    /* Determining the size of memory to be allocated since we need to
+       resolve $$ and $? */
     for (index = 1; index < token_count; index++) {
         temp_length = 0;
         if (strcmp(tokens[index], "$$") == 0) {
@@ -252,6 +256,8 @@ perform_echo(char **tokens, int token_count, int command_length) {
                 print_error("cd: Could not allocate memory", 0);
                 return 127;
             }
+
+            free_pid = 1;
 
             if (snprintf(pid_string, temp_length, "%i", current_pid) < 0) {
                 print_error("cd: ", 0);
@@ -265,6 +271,8 @@ perform_echo(char **tokens, int token_count, int command_length) {
                 print_error("cd: Could not allocate memory", 0);
                 return 127;
             }
+
+            free_exit = 1;
 
             if (snprintf(exit_status_string, temp_length, "%i", previous_exit_code) < 0) {
                 print_error("cd: ", 0);
@@ -301,6 +309,14 @@ perform_echo(char **tokens, int token_count, int command_length) {
                 print_error("cd: Internal error: ", 0);
             }
         }
+    }
+
+    if (free_pid) {
+        (void) free(pid_string);
+    }
+
+    if (free_exit) {
+        (void) free(exit_status_string);
     }
 
     fprintf(stdout, "%s\n", echo_string);
