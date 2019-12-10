@@ -5,6 +5,7 @@
 #include <limits.h>
 #include <errno.h>
 #include <signal.h>
+#include <pwd.h>
 
 #include "sish.h"
 
@@ -30,7 +31,7 @@ main (int argc, char **argv) {
     input_flags.x_flag = 0;
 
     if ((input_command = malloc(ARG_MAX)) == NULL) {
-        print_error("Could not allocate memory");
+        print_error("Could not allocate memory", 1);
         return 1;
     }
 
@@ -39,7 +40,7 @@ main (int argc, char **argv) {
         case 'c':
             input_flags.c_flag = 1;
             if ((input_command = strdup(optarg)) == NULL) {
-                print_error("Could not allocate memory");
+                print_error("Could not allocate memory", 1);
                 return 1;
             }
             break;
@@ -58,14 +59,14 @@ main (int argc, char **argv) {
         (void) execute_command(input_command);
     } else {
         if (signal(SIGINT, handle_sig_int) == SIG_ERR) {
-            print_error("Could not register signal");
+            print_error("Could not register signal", 1);
 		    return 1;
 	    }
 
         while (exit == 0) {
             fprintf(stdout, "%s$ ", getprogname());
             if (getline(&input_command, &input_size_max, stdin) == -1) {
-                print_error("Could not get input");
+                print_error("Could not get input", 1);
                 return 1;
             }
 
@@ -112,22 +113,29 @@ strip_new_line(char *input) {
 void
 execute_command(char *command) {
     char *last, *token, **tokens, *command_copy;
-    int token_count, index;
+    int token_count, index, status;
 
     index = 0;
 
+    if (strlen(command) == 1 && command[0] == '\0') {
+        return;
+    }
+
     if ((token_count = get_token_count(command)) < 0) {
-        print_error("Could not allocate memory");
+        print_error("Could not allocate memory", 1);
+        previous_exit_code = 127;
         return;
     }
 
     if ((tokens = malloc(token_count * sizeof(char *))) == NULL) {
-        print_error("Could not allocate memory");
+        print_error("Could not allocate memory", 1);
+        previous_exit_code = 127;
         return;
     }
 
     if ((command_copy = strdup(command)) == NULL) {
-        print_error("Could not allocate memory");
+        print_error("Could not allocate memory", 1);
+        previous_exit_code = 127;
         return;
     }
 
@@ -135,7 +143,8 @@ execute_command(char *command) {
 
     while (token != NULL) {
         if ((tokens[index] = strdup(token)) == NULL) {
-            print_error("Could not allocate memory");
+            print_error("Could not allocate memory", 1);
+            previous_exit_code = 127;
             return;
         }
         token = strtok_r(NULL, " ", &last);
@@ -144,6 +153,16 @@ execute_command(char *command) {
 
     for (index = 0; index < token_count; index++) {
         printf("Input: %s\n", tokens[index]);
+    }
+
+    if (strcmp(tokens[0], "cd") == 0) {
+        if (token_count == 1) {
+            status = perform_directory_change(NULL);
+        } else {
+            status = perform_directory_change(tokens[1]);
+        }
+        previous_exit_code = status;
+        printf("%i\n", previous_exit_code);
     }
 
     (void) free(tokens);
@@ -178,7 +197,37 @@ get_token_count(char *command) {
     return token_count;
 }
 
+int
+perform_directory_change(char *directory) {
+    uid_t current_user;
+    struct passwd *user_info;
+
+    if (directory == NULL) {
+        current_user = geteuid();
+        if ((user_info = getpwuid(current_user)) == NULL) {
+            print_error("Could not determine home directory", 1);
+            return 127;
+        }
+
+        if ((directory = strdup(user_info->pw_dir)) == NULL) {
+            print_error("Could not allocate memory", 1);
+            return 127;
+        }
+    }
+
+    if (chdir(directory) < 0) {
+        print_error("cd: Could not change directory", 0);
+        return errno;
+    }    
+
+    return 0;
+}
+
 void
-print_error(char *message) {
-    fprintf(stderr, "%s: %s: %s", getprogname(), message, strerror(errno));
+print_error(char *message, int include_prog_name) {
+    if (include_prog_name) {
+        fprintf(stderr, "%s: %s: %s\n", getprogname(), message, strerror(errno));
+    } else {
+        fprintf(stderr, "%s: %s\n", message, strerror(errno));
+    }
 }
