@@ -409,6 +409,11 @@ get_number_of_digits(int number) {
     return count;
 }
 
+/**
+ * redirect_file_descriptors will parse the tokens generated to see for
+ * <, >> and > operators to determine where we should redirect the output
+ * to and from where we should take in the input for executing the command.
+ **/
 int
 redirect_file_descriptors(char **tokens, int *token_count) {
     int input_file_descriptor, output_file_descriptor, index, mode;
@@ -472,6 +477,8 @@ redirect_file_descriptors(char **tokens, int *token_count) {
                     }
                     mode = 3;
                 } else {
+                    /* Manipulate the tokens since we only execute the command with args before
+                        encountering a redirection operator */
                     if (!redirected) {
                         new_token_count++;
                     } else {
@@ -531,6 +538,11 @@ redirect_file_descriptors(char **tokens, int *token_count) {
     return 0;
 }
 
+/**
+ * create_string_from_index takes a string and an index.
+ * It will use the index as the start point and end as the length of the
+ * string and then create a new string.
+ **/
 char *
 create_string_from_index(char *input, int index) {
     int length, start;
@@ -576,6 +588,11 @@ append_char(char *string, char character) {
     return 0;
 }
 
+/**
+ * Resetting the file descriptors to the orignal file descriptors
+ * in case we redirected them due to encountering redirection 
+ * operators.
+ **/
 void
 reset_file_descriptors() {
     (void) close(STDOUT_FILENO);
