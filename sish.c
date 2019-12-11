@@ -343,7 +343,6 @@ int
 perform_exec(char **tokens) {
     int output_pipe[2], error_pipe[2], content, status;
     pid_t child_pid;
-    char *output_buffer, *error_buffer;
     char *output_store, *error_store;
 
     if (pipe(output_pipe) < 0 || pipe(error_pipe) < 0) {
@@ -375,9 +374,9 @@ perform_exec(char **tokens) {
         execvp(tokens[0], tokens);
         
         if (errno == ENOENT) {
-            fprintf(stderr, "%s: not found \n", tokens[0]);
+            fprintf(stderr, "%s: not found", tokens[0]);
         } else {
-            fprintf(stderr, "%s: %s \n", tokens[0], strerror(errno));
+            fprintf(stderr, "%s: %s", tokens[0], strerror(errno));
         }
 
         exit(127);
@@ -385,56 +384,38 @@ perform_exec(char **tokens) {
         (void) close(output_pipe[1]);
         (void) close(error_pipe[1]);
         
-        (void) waitpid(child_pid, &status, 0);
-
-        if ((output_buffer = malloc(BUFFERSIZE)) == NULL ||
-            (error_buffer = malloc(BUFFERSIZE)) == NULL  ||
-            (output_store = malloc(BUFFERSIZE)) == NULL  ||
+        if ((output_store = malloc(BUFFERSIZE)) == NULL  ||
             (error_store = malloc(BUFFERSIZE)) == NULL) {
             print_error("Could not allocate space: ", 1);
             return 127;
         }
 
         while ((content = read(output_pipe[0], output_store, BUFFERSIZE)) > 0) {
-            if (strlcat(output_buffer, output_store, BUFFERSIZE) > BUFFERSIZE) {
-                print_error("Internal error: ", 0);
-                return 127;
-            }
-            (void) bzero(output_store, strlen(output_store));
+            fprintf(stdout, "%s", output_store);
         }
 
         while ((content = read(error_pipe[0], error_store, BUFFERSIZE)) > 0) {
-           if (strlcat(error_buffer, error_store, BUFFERSIZE) > BUFFERSIZE) {
-                print_error("Internal error: ", 0);
-                return 127;
-           }
-           (void) bzero(error_store, strlen(error_store));
+            fprintf(stderr, "%s", error_store);
         }
 
         (void) close(output_pipe[0]);
         (void) close(error_pipe[0]);
     }
 
+    (void) waitpid(child_pid, &status, 0);
+
     if (WIFEXITED(status)) {
         status = WEXITSTATUS(status);
     }
 
     if (status == 0) {
-        (void) strip_new_line(output_buffer);
-        if (strlen(output_buffer) > 0) {
-             fprintf(stdout, "%s\n", output_buffer);
-        }
+        fprintf(stdout, "\n");
     } else {
-        (void) strip_new_line(error_buffer);
-        if (strlen(error_buffer) > 0) {
-             fprintf(stdout, "%s\n", error_buffer);
-        }
+        fprintf(stderr, "\n");
     }
 
     (void) free(error_store);
     (void) free(output_store);
-    (void) free(output_buffer);
-    (void) free(error_buffer);
 
     return status;
 }
