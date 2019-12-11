@@ -8,7 +8,8 @@
 #include <errno.h>
 #include <signal.h>
 #include <pwd.h>
-#include  <setjmp.h>
+#include <setjmp.h>
+#include <fcntl.h>
 
 #include "sish.h"
 
@@ -36,6 +37,10 @@ main (int argc, char **argv) {
 
     input_flags.c_flag = 0;
     input_flags.x_flag = 0;
+
+    /* TODO: return check */
+    default_standard_input = dup(STDIN_FILENO);
+    default_standard_output = dup(STDOUT_FILENO);
 
     if ((input_command = malloc(ARG_MAX)) == NULL) {
         print_error("Could not allocate memory", 1);
@@ -121,6 +126,7 @@ void
 execute_command(char *command) {
     char *last, *token, **tokens, *command_copy;
     int token_count, index, status, command_length;
+    int redirection_status;
     
     index = 0;
 
@@ -162,6 +168,11 @@ execute_command(char *command) {
 
     tokens[index] = '\0';
 
+    if ((redirection_status = redirect_file_descriptors(tokens, &token_count)) != 0) {
+        previous_exit_code = redirection_status;
+        return;
+    }
+
     if (strcmp(tokens[0], "cd") == 0) {
         if (token_count == 1) {
             status = perform_directory_change(NULL);
@@ -174,10 +185,12 @@ execute_command(char *command) {
         status = perform_exec(tokens);
     }
 
-     previous_exit_code = status;
+    previous_exit_code = status;
 
     (void) free(tokens);
     (void) free(command_copy);
+
+    reset_file_descriptors();
 }
 
 /**
@@ -343,7 +356,7 @@ int
 perform_exec(char **tokens) {
     int status;
     pid_t child_pid;
-
+  
     if ((child_pid = fork()) < 0) {
         print_error("Could not create new process: ", 1);
         return 127;
@@ -394,4 +407,187 @@ get_number_of_digits(int number) {
     }
 
     return count;
+}
+
+int
+redirect_file_descriptors(char **tokens, int *token_count) {
+    int input_file_descriptor, output_file_descriptor, index, mode;
+    int redirected, new_token_count;
+    char *file_name;
+
+    input_file_descriptor = STDIN_FILENO;
+    output_file_descriptor = STDOUT_FILENO;
+
+    redirected = 0;
+    mode = 0;
+
+    new_token_count = 0;
+
+    for (index = 0; index < *token_count; index++) {
+        mode = 0;
+        if ((*token_count - index) == 1) {
+            if (strcmp(tokens[index], ">") == 0 || strcmp(tokens[index], ">>") == 0
+                || strcmp(tokens[index], "<") == 0) {
+                print_error("Syntax error", 1);
+                return 127;
+            }
+        }
+
+        if (strcmp(tokens[index], ">") == 0) {
+            if ((file_name = strdup(tokens[index + 1])) == NULL) {
+                print_error("Could not allocate memory", 1);
+                return 127;
+            }
+            mode = 1;
+        } else if (strcmp(tokens[index], ">>") == 0) {
+            if ((file_name = strdup(tokens[index + 1])) == NULL) {
+                print_error("Could not allocate memory", 1);
+                return 127;
+            }
+            mode = 2;
+        } else if (strcmp(tokens[index], "<") == 0) {
+             if ((file_name = strdup(tokens[index + 1])) == NULL) {
+                print_error("Could not allocate memory", 1);
+                return 127;
+            }
+            mode = 3;
+        } else {
+            if (strlen(tokens[index]) > 1 ) {
+                if (tokens[index][0] == '>' && tokens[index][1] == '>') {
+                    if ((file_name = create_string_from_index(tokens[index], 2)) == NULL) {
+                        print_error("Could not allocate memory", 1);
+                        return 127; 
+                    }
+                    mode = 2;
+                } else if (tokens[index][0] == '>') {
+                    if ((file_name = create_string_from_index(tokens[index], 1)) == NULL) {
+                        print_error("Could not allocate memory", 1);
+                        return 127; 
+                    }
+                    mode = 1;
+                } else if (tokens[index][0] == '<') {
+                    if ((file_name = create_string_from_index(tokens[index], 1)) == NULL) {
+                        print_error("Could not allocate memory", 1);
+                        return 127; 
+                    }
+                    mode = 3;
+                } else {
+                    if (!redirected) {
+                        new_token_count++;
+                    } else {
+                        tokens[index] = '\0';
+                    }
+                    continue;
+                }
+            }
+        }
+
+        switch (mode) {
+            case 1:
+                if ((output_file_descriptor =  open(file_name, O_CREAT | O_WRONLY | O_TRUNC, 0644)) < 0) {
+                    print_error("Could not open file for writing", 1);
+                    return 127;
+                }
+                redirected = 1;
+                tokens[index] = '\0';
+                break;
+            case 2:
+                 if ((output_file_descriptor =  open(file_name, O_CREAT | O_WRONLY | O_APPEND, 0644)) < 0) {
+                    print_error("Could not open file for writing", 1);
+                    return 127;
+                }
+                redirected = 1;
+                tokens[index] = '\0';
+                break;
+            case 3:
+                if ((input_file_descriptor =  open(file_name, O_RDONLY, 0644)) < 0) {
+                    print_error("Could not open file for writing", 1);
+                    return 127;
+                }
+                redirected = 1;
+                tokens[index] = '\0';
+                break;
+            default:
+                break;
+        }
+    }
+
+    if (input_file_descriptor != STDIN_FILENO) {
+        if (dup2(input_file_descriptor, STDIN_FILENO) != STDIN_FILENO) {
+            print_error("Could duplicate file descriptor", 1);
+            return 127;
+        }
+    }
+
+    if (output_file_descriptor != STDOUT_FILENO) {
+        if (dup2(output_file_descriptor, STDOUT_FILENO) != STDOUT_FILENO) {
+            print_error("Could duplicate file descriptor", 1);
+            return 127;
+        }
+    }
+
+    *token_count = new_token_count;
+
+    return 0;
+}
+
+char *
+create_string_from_index(char *input, int index) {
+    int length, start;
+    char *result;
+
+    length = strlen(input);
+
+    if ((result = malloc(length + 1)) == NULL) {
+        return NULL;
+    }
+
+    result[0] = '\0';
+
+    if ((length - index) < 2) {
+        return NULL;
+    }
+
+    for (start = index; start < length; start++) {
+        if (append_char(result, input[start]) != 0) {
+            return NULL;
+        }
+    }
+
+    return result;
+}
+
+int
+append_char(char *string, char character) {
+    char *temp;
+    if ((temp = malloc(2)) == NULL) {
+         return 1;
+    }
+                
+    temp[0] = character;
+    temp[1] = '\0';
+
+    if (strcat(string, temp) == NULL) {
+        return 1;
+    }
+
+    (void) free(temp);
+
+    return 0;
+}
+
+void
+reset_file_descriptors() {
+    (void) close(STDOUT_FILENO);
+    (void) close(STDIN_FILENO);
+
+    if (dup2(default_standard_output, STDOUT_FILENO) != STDOUT_FILENO) {
+        print_error("Could duplicate file descriptor", 1);
+        exit(127);
+    }
+
+    if (dup2(default_standard_input, STDIN_FILENO) != STDIN_FILENO) {
+        print_error("Could duplicate file descriptor", 1);
+        exit(127);
+    }
 }
