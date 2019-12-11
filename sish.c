@@ -148,7 +148,7 @@ execute_command(char *command) {
         return;
     }
 
-    token = strtok_r(command_copy, " ", &last);
+    token = strtok_r(command_copy, " \t", &last);
 
     while (token != NULL) {
         if ((tokens[index] = strdup(token)) == NULL) {
