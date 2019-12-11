@@ -341,65 +341,22 @@ perform_echo(char **tokens, int token_count, int command_length) {
  **/
 int
 perform_exec(char **tokens) {
-    int output_pipe[2], error_pipe[2], content, status;
+    int status;
     pid_t child_pid;
-    char *output_store, *error_store;
-
-    if (pipe(output_pipe) < 0 || pipe(error_pipe) < 0) {
-        print_error("Could not create a pipe: ", 1);
-        return 127;
-    }
 
     if ((child_pid = fork()) < 0) {
         print_error("Could not create new process: ", 1);
         return 127;
     } else if (child_pid == 0) {
-        (void) close(output_pipe[0]);
-        (void) close(error_pipe[0]);
-
-        if (output_pipe[1] != STDOUT_FILENO) {
-            if (dup2(output_pipe[1], STDOUT_FILENO) != STDOUT_FILENO) {
-                fprintf(stderr, "Could not duplicate fd: %s \n", strerror(errno));
-                exit(127);
-            }
-        }
-
-        if (error_pipe[1] != STDERR_FILENO) {
-            if (dup2(error_pipe[1], STDERR_FILENO) != STDERR_FILENO) {
-                fprintf(stderr, "Could not duplicate fd: %s \n", strerror(errno));
-                exit(127);
-            }
-        }
-
         execvp(tokens[0], tokens);
         
         if (errno == ENOENT) {
-            fprintf(stderr, "%s: not found", tokens[0]);
+            fprintf(stderr, "%s: not found\n", tokens[0]);
         } else {
-            fprintf(stderr, "%s: %s", tokens[0], strerror(errno));
+            fprintf(stderr, "%s: %s\n", tokens[0], strerror(errno));
         }
 
         exit(127);
-    } else {
-        (void) close(output_pipe[1]);
-        (void) close(error_pipe[1]);
-        
-        if ((output_store = malloc(BUFFERSIZE)) == NULL  ||
-            (error_store = malloc(BUFFERSIZE)) == NULL) {
-            print_error("Could not allocate space: ", 1);
-            return 127;
-        }
-
-        while ((content = read(output_pipe[0], output_store, BUFFERSIZE)) > 0) {
-            fprintf(stdout, "%s", output_store);
-        }
-
-        while ((content = read(error_pipe[0], error_store, BUFFERSIZE)) > 0) {
-            fprintf(stderr, "%s", error_store);
-        }
-
-        (void) close(output_pipe[0]);
-        (void) close(error_pipe[0]);
     }
 
     (void) waitpid(child_pid, &status, 0);
@@ -407,15 +364,6 @@ perform_exec(char **tokens) {
     if (WIFEXITED(status)) {
         status = WEXITSTATUS(status);
     }
-
-    if (status == 0) {
-        fprintf(stdout, "\n");
-    } else {
-        fprintf(stderr, "\n");
-    }
-
-    (void) free(error_store);
-    (void) free(output_store);
 
     return status;
 }
