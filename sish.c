@@ -76,7 +76,11 @@ main (int argc, char **argv) {
     }
 
     if (input_flags.c_flag) {
-        (void) execute_command(input_command);
+        if (strchr(input_command, '|')) {
+            (void) pipleline_input_commands(input_command);
+        } else {
+            (void) execute_command(input_command);
+        }
     } else {
         if (signal(SIGINT, handle_sig_int) == SIG_ERR) {
             print_error("Could not register signal", 1);
