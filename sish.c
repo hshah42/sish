@@ -125,10 +125,11 @@ strip_new_line(char *input) {
 void
 execute_command(char *command) {
     char *last, *token, **tokens, *command_copy;
-    int token_count, index, status, command_length;
+    int token_count, token_count_estimate, index, status, command_length;
     int redirection_status;
     
     index = 0;
+    token_count = 0;
 
     if (strlen(command) < 1 && command[0] == '\0') {
         return;
@@ -136,13 +137,13 @@ execute_command(char *command) {
 
     command_length = strlen(command);
 
-    if ((token_count = get_token_count(command)) < 0) {
+    if ((token_count_estimate = get_token_count(command)) < 0) {
         print_error("Could not allocate memory", 1);
         previous_exit_code = 127;
         return;
     }
 
-    if ((tokens = malloc((token_count * sizeof(char *)) + 1)) == NULL) {
+    if ((tokens = malloc((token_count_estimate * sizeof(char *)) + 1)) == NULL) {
         print_error("Could not allocate memory", 1);
         previous_exit_code = 127;
         return;
@@ -157,12 +158,13 @@ execute_command(char *command) {
     token = strtok_r(command_copy, " \t", &last);
 
     while (token != NULL) {
+        token_count++;
         if ((tokens[index] = strdup(token)) == NULL) {
             print_error("Could not allocate memory", 1);
             previous_exit_code = 127;
             return;
         }
-        token = strtok_r(NULL, " ", &last);
+        token = strtok_r(NULL, " \t", &last);
         index++;
     }
 
@@ -210,11 +212,11 @@ get_token_count(char *command) {
         return -1;
     }
 
-    token = strtok_r(command_copy, " ", &last);
+    token = strtok_r(command_copy, " \t<>", &last);
 
     while (token != NULL) {
         token_count++;
-        token = strtok_r(NULL, " ", &last);
+        token = strtok_r(NULL, " \t<>", &last);
     }
 
     (void) free(command_copy);
