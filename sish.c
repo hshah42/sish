@@ -184,6 +184,13 @@ pipleline_input_commands(char *input_command) {
             (void) close(stdout_fd);
             (void) close(stdin_fd);
             (void) waitpid(child, &status, 0);
+
+            if (WIFEXITED(status)) {
+                previous_exit_code = WEXITSTATUS(status);
+            }
+
+            /*TODO check for status when exec is success*/
+
             stdin_fd = stdout_pipe[0];
         }
         
