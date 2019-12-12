@@ -97,13 +97,119 @@ main (int argc, char **argv) {
                 break;
             }
 
-            (void) execute_command(input_command);
+            if (strchr(input_command, '|')) {
+                (void) pipleline_input_commands(input_command);
+            } else {
+                (void) execute_command(input_command);
+            }
+            
         }
     }
 
     (void) free(input_command);
 
     return 0;
+}
+
+void
+pipleline_input_commands(char *input_command) {
+    int index, stdout_pipe[2], stdin_fd, stdout_fd;
+    int command_count;
+    pid_t child;
+    int status;
+    char *last, *command, *input_command_copy;
+
+    index = 0;
+
+    if ((command_count = get_pipe_estimate(input_command)) < 0) {
+        print_error("Could not allocate memory", 1);
+        previous_exit_code = 127;
+        return;
+    }
+
+    if ((input_command_copy = strdup(input_command)) == NULL) {
+        print_error("Could not allocate memory", 1);
+        previous_exit_code = 127;
+        return;
+    }
+
+    if ((stdin_fd = dup(STDIN_FILENO)) < 1) {
+        print_error("Could not duplicate file descriptor", 1);
+        previous_exit_code = 127;
+        return;
+    }
+
+    command = strtok_r(input_command_copy, "|", &last);
+
+    while (command != NULL) {
+        if (pipe(stdout_pipe)) {
+            print_error("Could not create a pipe", 1);
+            previous_exit_code = 127;
+            return;
+        }
+
+        if ((command_count - index) == 1) {
+            if ((stdout_fd = dup(STDOUT_FILENO)) < 0) {
+                print_error("Could not duplicate file descriptor", 1);
+                previous_exit_code = 127;
+                return;
+            }
+            (void) close(stdout_pipe[1]);
+        } else {
+            stdout_fd = stdout_pipe[1];
+        }
+
+        if ((child = fork()) < 0) {
+            print_error("Could not fork a child", 1);
+            previous_exit_code = 127;
+            return;
+        } else if (child == 0) {
+            if (dup2(stdin_fd, STDIN_FILENO) != STDIN_FILENO) {
+                fprintf(stderr, "Could not duplicate fd: %s \n", strerror(errno));
+                exit(127);
+            }
+
+            if (dup2(stdout_fd, STDOUT_FILENO) != STDOUT_FILENO) {
+                fprintf(stderr, "Could not duplicate fd: %s \n", strerror(errno));
+                exit(127);
+            }
+
+            (void) execute_command(command);
+            exit(127);
+        } else {
+            (void) close(stdout_fd);
+            (void) close(stdin_fd);
+            (void) waitpid(child, &status, 0);
+            stdin_fd = stdout_pipe[0];
+        }
+        
+        command = strtok_r(NULL, "|", &last);
+        index++;
+    }
+
+    (void) close(stdin_fd);
+    (void) close(stdout_fd);
+}
+
+int
+get_pipe_estimate(char *input_command) {
+    int count;
+    char *last, *input_command_copy, *command;
+
+    count = 0;
+
+    if ((input_command_copy = strdup(input_command)) == NULL) {
+        return -1;
+    }
+
+    command = strtok_r(input_command_copy, "|", &last);
+
+    while (command != NULL) {
+        count++;
+        command = strtok_r(NULL, "|", &last);
+    }
+
+    return count;
 }
 
 void
@@ -702,6 +808,6 @@ reiterate_token_count(char **tokens) {
     while(tokens[index] != '\0') {
         index++;
     }
-    
+
     return index;
 }

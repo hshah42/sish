@@ -22,6 +22,7 @@ void print_error(char *message, int include_prog_name);
 void handle_sig_int(int signal);
 void reset_file_descriptors();
 void remove_element(char **tokens, int position, int token_count);
+void pipleline_input_commands(char *input_command);
 
 int get_token_count(char *command);
 int perform_directory_change(char *directory);
@@ -30,6 +31,7 @@ int perform_exec(char **tokens);
 int append_char(char *string, char character);
 int redirect_file_descriptors(char **tokens, int token_count);
 int reiterate_token_count(char **tokens);
+int get_pipe_estimate(char *input_command);
 
 unsigned int get_number_of_digits(int number);
 
