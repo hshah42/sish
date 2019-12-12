@@ -524,6 +524,7 @@ redirect_file_descriptors(char **tokens, int *token_count) {
             print_error("Could duplicate file descriptor", 1);
             return 127;
         }
+        (void) close(input_file_descriptor);
     }
 
     if (output_file_descriptor != STDOUT_FILENO) {
@@ -531,6 +532,7 @@ redirect_file_descriptors(char **tokens, int *token_count) {
             print_error("Could duplicate file descriptor", 1);
             return 127;
         }
+        (void) close(output_file_descriptor);
     }
 
     *token_count = new_token_count;
