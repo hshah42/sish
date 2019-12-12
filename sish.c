@@ -124,9 +124,10 @@ strip_new_line(char *input) {
  **/
 void
 execute_command(char *command) {
-    char *last, *token, **tokens, *command_copy;
+    char *last, *token, **tokens, *command_copy, *temp;
     int token_count, token_count_estimate, index, status, command_length;
     int redirection_status;
+    unsigned int token_index;
     
     index = 0;
     token_count = 0;
@@ -158,14 +159,81 @@ execute_command(char *command) {
     token = strtok_r(command_copy, " \t", &last);
 
     while (token != NULL) {
-        token_count++;
-        if ((tokens[index] = strdup(token)) == NULL) {
+        if (strcmp(token, ">") == 0 || strcmp(token, ">>") == 0 || strcmp(token, "<") == 0 ) {
+            if ((tokens[index] = strdup(token)) == NULL) {
+                print_error("Could not allocate memory", 1);
+                previous_exit_code = 127;
+                return;
+            }
+            token = strtok_r(NULL, " \t", &last);
+            index++;
+            token_count++;
+            continue;
+        }
+
+        if ((temp = malloc(strlen(token))) == NULL) {
             print_error("Could not allocate memory", 1);
             previous_exit_code = 127;
             return;
         }
+
+        (void) bzero(temp, sizeof(temp));
+
+        for (token_index = 0; token_index < strlen(token); token_index++) {
+            if (token[token_index] == '>') {
+                if (strlen(temp) > 0) {
+                    if ((tokens[index] = strdup(temp)) == NULL) {
+                        print_error("Could not allocate memory", 1);
+                        previous_exit_code = 127;
+                        return;
+                    }
+                    (void) bzero(temp, strlen(temp));
+                    index++;
+                    token_count++;
+                }
+                
+                if ((strlen(token) - token_index) > 1 && token[token_index + 1] == '>') {
+                    tokens[index] = ">>";
+                    index++;
+                    token_index++;
+                } else {
+                    tokens[index] = ">";
+                    index++;
+                }
+                    
+                token_count++;
+            } else if (token[token_index] == '<') {
+                if (strlen(temp) > 0) {
+                    if ((tokens[index] = strdup(temp)) == NULL) {
+                        print_error("Could not allocate memory", 1);
+                        previous_exit_code = 127;
+                        return;
+                    }
+                    (void) bzero(temp, strlen(temp));
+                    index++;
+                    token_count++;
+                }
+
+                tokens[index] = "<";
+                index++;
+                token_count++;
+            } else {
+                (void) append_char(temp, token[token_index]);
+            }
+        }
+
+        if (strlen(temp) > 0) {
+            if ((tokens[index] = strdup(temp)) == NULL) {
+                print_error("Could not allocate memory", 1);
+                previous_exit_code = 127;
+                return;
+            }
+            index++;
+            token_count++;
+        }
+
         token = strtok_r(NULL, " \t", &last);
-        index++;
+        (void) free(temp);
     }
 
     tokens[index] = '\0';
@@ -459,36 +527,14 @@ redirect_file_descriptors(char **tokens, int *token_count) {
             }
             mode = 3;
         } else {
-            if (strlen(tokens[index]) > 1 ) {
-                if (tokens[index][0] == '>' && tokens[index][1] == '>') {
-                    if ((file_name = create_string_from_index(tokens[index], 2)) == NULL) {
-                        print_error("Could not allocate memory", 1);
-                        return 127; 
-                    }
-                    mode = 2;
-                } else if (tokens[index][0] == '>') {
-                    if ((file_name = create_string_from_index(tokens[index], 1)) == NULL) {
-                        print_error("Could not allocate memory", 1);
-                        return 127; 
-                    }
-                    mode = 1;
-                } else if (tokens[index][0] == '<') {
-                    if ((file_name = create_string_from_index(tokens[index], 1)) == NULL) {
-                        print_error("Could not allocate memory", 1);
-                        return 127; 
-                    }
-                    mode = 3;
-                } else {
-                    /* Manipulate the tokens since we only execute the command with args before
-                        encountering a redirection operator */
-                    if (!redirected) {
-                        new_token_count++;
-                    } else {
-                        tokens[index] = '\0';
-                    }
-                    continue;
-                }
+            /* Manipulate the tokens since we only execute the command with args before
+                encountering a redirection operator */
+            if (!redirected) {
+                new_token_count++;
+            } else {
+                tokens[index] = '\0';
             }
+            continue;
         }
 
         switch (mode) {
