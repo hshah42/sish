@@ -38,9 +38,17 @@ main (int argc, char **argv) {
     input_flags.c_flag = 0;
     input_flags.x_flag = 0;
 
-    /* TODO: return check */
-    default_standard_input = dup(STDIN_FILENO);
-    default_standard_output = dup(STDOUT_FILENO);
+    /* Need backup of stdout/in as we need to restore in case
+       of redirection */
+    if ((default_standard_input = dup(STDIN_FILENO)) < 0) {
+        print_error("Could not duplicate file descriptor", 1);
+        return 1;
+    }
+    
+    if ((default_standard_output = dup(STDOUT_FILENO)) < 0) {
+        print_error("Could not duplicate file descriptor", 1);
+        return 1;
+    }
 
     if ((input_command = malloc(ARG_MAX)) == NULL) {
         print_error("Could not allocate memory", 1);
@@ -260,7 +268,7 @@ execute_command(char *command) {
     (void) free(tokens);
     (void) free(command_copy);
 
-    reset_file_descriptors();
+    (void) reset_file_descriptors();
 }
 
 /**
