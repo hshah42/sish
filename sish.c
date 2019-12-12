@@ -246,10 +246,19 @@ execute_command(char *command) {
 
     tokens[index] = '\0';
 
-    if ((redirection_status = redirect_file_descriptors(tokens, &token_count)) != 0) {
+    if ((redirection_status = redirect_file_descriptors(tokens, token_count)) != 0) {
         previous_exit_code = redirection_status;
         return;
     }
+
+    if (tokens[0] == '\0') {
+        (void) free(tokens);
+        (void) free(command_copy);
+        (void) reset_file_descriptors();
+        return;
+    }
+
+    token_count = reiterate_token_count(tokens);
 
     if (strcmp(tokens[0], "cd") == 0) {
         if (token_count == 1) {
@@ -493,57 +502,68 @@ get_number_of_digits(int number) {
  * to and from where we should take in the input for executing the command.
  **/
 int
-redirect_file_descriptors(char **tokens, int *token_count) {
+redirect_file_descriptors(char **tokens, int token_count) {
     int input_file_descriptor, output_file_descriptor, index, mode;
-    int redirected, new_token_count;
-    char *file_name;
+    char *file_name, **tokens_copy;
+    int count, offset;
 
     input_file_descriptor = STDIN_FILENO;
     output_file_descriptor = STDOUT_FILENO;
 
-    redirected = 0;
+    count = token_count;
+    offset = 0;
+
+    if ((tokens_copy = malloc(token_count * sizeof(char *))) == NULL) {
+        print_error("Could not allocate memory", 1);
+        return 127;
+    }
+
+    for (index = 0; index < token_count; index++) {
+        if ((tokens_copy[index] = strdup(tokens[index])) == NULL) {
+            print_error("Could not allocate memory", 1);
+            return 127;
+        }
+    }
+
     mode = 0;
 
-    new_token_count = 0;
-
-    for (index = 0; index < *token_count; index++) {
+    for (index = 0; index < token_count; index++) {
         mode = 0;
-        if ((*token_count - index) == 1) {
-            if (strcmp(tokens[index], ">") == 0 || strcmp(tokens[index], ">>") == 0
-                || strcmp(tokens[index], "<") == 0) {
+        if ((token_count - index) == 1) {
+            if (strcmp(tokens_copy[index], ">") == 0 || 
+                strcmp(tokens_copy[index], ">>") == 0|| 
+                strcmp(tokens_copy[index], "<") == 0) {
                 print_error("Syntax error", 1);
                 return 127;
             }
         }
 
-        if (strcmp(tokens[index], ">") == 0) {
-            if ((file_name = strdup(tokens[index + 1])) == NULL) {
+        if (strcmp(tokens_copy[index], ">") == 0) {
+            if ((file_name = strdup(tokens_copy[index + 1])) == NULL) {
                 print_error("Could not allocate memory", 1);
                 return 127;
             }
             mode = 1;
-        } else if (strcmp(tokens[index], ">>") == 0) {
-            if ((file_name = strdup(tokens[index + 1])) == NULL) {
+        } else if (strcmp(tokens_copy[index], ">>") == 0) {
+            if ((file_name = strdup(tokens_copy[index + 1])) == NULL) {
                 print_error("Could not allocate memory", 1);
                 return 127;
             }
             mode = 2;
-        } else if (strcmp(tokens[index], "<") == 0) {
-             if ((file_name = strdup(tokens[index + 1])) == NULL) {
+        } else if (strcmp(tokens_copy[index], "<") == 0) {
+             if ((file_name = strdup(tokens_copy[index + 1])) == NULL) {
                 print_error("Could not allocate memory", 1);
                 return 127;
             }
             mode = 3;
         } else {
-            /* Manipulate the tokens since we only execute the command with args before
-                encountering a redirection operator */
-            if (!redirected) {
-                new_token_count++;
-            } else {
-                tokens[index] = '\0';
-            }
             continue;
         }
+
+        (void) remove_element(tokens, (index - offset), count);
+        (void) remove_element(tokens, (index - offset), count);
+        index++;
+        offset += 2;
 
         switch (mode) {
             case 1:
@@ -551,24 +571,18 @@ redirect_file_descriptors(char **tokens, int *token_count) {
                     print_error("Could not open file for writing", 1);
                     return 127;
                 }
-                redirected = 1;
-                tokens[index] = '\0';
                 break;
             case 2:
                  if ((output_file_descriptor =  open(file_name, O_CREAT | O_WRONLY | O_APPEND, 0644)) < 0) {
                     print_error("Could not open file for writing", 1);
                     return 127;
                 }
-                redirected = 1;
-                tokens[index] = '\0';
                 break;
             case 3:
                 if ((input_file_descriptor =  open(file_name, O_RDONLY, 0644)) < 0) {
                     print_error("Could not open file for writing", 1);
                     return 127;
                 }
-                redirected = 1;
-                tokens[index] = '\0';
                 break;
             default:
                 break;
@@ -591,7 +605,7 @@ redirect_file_descriptors(char **tokens, int *token_count) {
         (void) close(output_file_descriptor);
     }
 
-    *token_count = new_token_count;
+    (void) free(tokens_copy);
 
     return 0;
 }
@@ -665,4 +679,29 @@ reset_file_descriptors() {
         print_error("Could duplicate file descriptor", 1);
         exit(127);
     }
+}
+
+void
+remove_element(char **tokens, int position, int token_count) {
+    int index;
+
+    for (index = position; index < token_count; index++) {
+        if ((token_count - index) == 1) {
+            tokens[index] = '\0';
+        } else {
+            tokens[index] = tokens[index + 1];
+        }
+    }
+}
+
+int
+reiterate_token_count(char **tokens) {
+    int index;
+    index = 0;
+    
+    while(tokens[index] != '\0') {
+        index++;
+    }
+    
+    return index;
 }

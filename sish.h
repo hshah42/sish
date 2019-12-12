@@ -21,13 +21,15 @@ void execute_command(char *command);
 void print_error(char *message, int include_prog_name);
 void handle_sig_int(int signal);
 void reset_file_descriptors();
+void remove_element(char **tokens, int position, int token_count);
 
 int get_token_count(char *command);
 int perform_directory_change(char *directory);
 int perform_echo(char **tokens, int token_count, int command_length);
 int perform_exec(char **tokens);
 int append_char(char *string, char character);
-int redirect_file_descriptors(char **tokens, int *token_count);
+int redirect_file_descriptors(char **tokens, int token_count);
+int reiterate_token_count(char **tokens);
 
 unsigned int get_number_of_digits(int number);
 
