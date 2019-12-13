@@ -252,7 +252,7 @@ execute_command(char *command) {
     char *last, *token, **tokens, *command_copy, *temp;
     int token_count, token_count_estimate, index, status, command_length;
     int redirection_status;
-    unsigned int token_index;
+    int token_index, token_length;
     
     index = 0;
     token_count = 0;
@@ -296,15 +296,29 @@ execute_command(char *command) {
             continue;
         }
 
-        if ((temp = malloc(strlen(token))) == NULL) {
+        if (!(strchr(token, '<') || strchr(token, '>'))) {
+            if ((tokens[index] = strdup(token)) == NULL) {
+                print_error("Could not allocate memory", 1);
+                previous_exit_code = 127;
+                return;
+            }
+            index++;
+            token_count++;
+            token = strtok_r(NULL, " \t", &last);
+            continue;
+        }
+
+        token_length = strlen(token);
+
+        if ((temp = malloc(token_length)) == NULL) {
             print_error("Could not allocate memory", 1);
             previous_exit_code = 127;
             return;
         }
 
-        (void) bzero(temp, sizeof(temp));
+        temp[0] = '\0';
 
-        for (token_index = 0; token_index < strlen(token); token_index++) {
+        for (token_index = 0; token_index < token_length; token_index++) {
             if (token[token_index] == '>') {
                 if (strlen(temp) > 0) {
                     if ((tokens[index] = strdup(temp)) == NULL) {
@@ -312,7 +326,7 @@ execute_command(char *command) {
                         previous_exit_code = 127;
                         return;
                     }
-                    (void) bzero(temp, strlen(temp));
+                    temp[0] = '\0';
                     index++;
                     token_count++;
                 }
@@ -334,7 +348,7 @@ execute_command(char *command) {
                         previous_exit_code = 127;
                         return;
                     }
-                    (void) bzero(temp, strlen(temp));
+                    temp[0] = '\0';
                     index++;
                     token_count++;
                 }
@@ -468,7 +482,7 @@ replace_dollars_in_tokens(char **tokens, int token_count) {
     int index, j_index, is_prevous_dollar, token_length, pid_length;
     int new_token_length, prev_exit_code_len, modified;
     pid_t pid;
-    char *temp, *pid_string, *exit_code_str;
+    char *temp_token, *pid_string, *exit_code_str;
 
     pid = getpid();
     is_prevous_dollar = 0;
@@ -504,7 +518,7 @@ replace_dollars_in_tokens(char **tokens, int token_count) {
         for (j_index = 0; j_index < token_length; j_index++) {
             if (tokens[index][j_index] == '$') {
                 if (is_prevous_dollar) {
-                    new_token_length = new_token_length + pid_length;
+                    new_token_length = new_token_length + pid_length - 2;
                     is_prevous_dollar = 0;
                     modified = 1;
                 } else {
@@ -512,7 +526,7 @@ replace_dollars_in_tokens(char **tokens, int token_count) {
                 }
             } else if (tokens[index][j_index] == '?') {
                 if (is_prevous_dollar) {
-                    new_token_length = new_token_length + prev_exit_code_len;
+                    new_token_length = new_token_length + prev_exit_code_len - 2;
                     is_prevous_dollar = 0;
                     modified = 1;
                 }
@@ -522,20 +536,25 @@ replace_dollars_in_tokens(char **tokens, int token_count) {
             }
         }
 
+        if (is_prevous_dollar) {
+            new_token_length++;
+        }
+
         if (!modified) {
             continue;
         } else {
-            if ((temp = malloc(new_token_length + 1)) == NULL) {
+            if ((temp_token = malloc(new_token_length + 1)) == NULL) {
                 print_error("Could not allocate memory", 1);
                 return 127;
             }
 
-            temp[0] = '\0';
+            temp_token[0] = '\0';
+            is_prevous_dollar = 0;
 
             for (j_index = 0; j_index < token_length; j_index++) {
                 if (tokens[index][j_index] == '$') {
                     if (is_prevous_dollar) {
-                        if (strcat(temp, pid_string) == NULL) {
+                        if (strcat(temp_token, pid_string) == NULL) {
                             print_error("Internal error: ", 1);
                             return 127;
                         }
@@ -545,27 +564,27 @@ replace_dollars_in_tokens(char **tokens, int token_count) {
                     }
                 } else if (tokens[index][j_index] == '?') {
                     if (is_prevous_dollar) {
-                        if (strcat(temp, exit_code_str) == NULL) {
+                        if (strcat(temp_token, exit_code_str) == NULL) {
                             print_error("Internal error: ", 1);
                             return 127;
                         }
                         modified = 1;
                         is_prevous_dollar = 0;
                     } else {
-                        if (append_char(temp, '?') != 0) {
+                        if (append_char(temp_token, '?') != 0) {
                             print_error("Internal error: ", 1);
                             return 127;
                         }
                     }
                 } else {
                     if (is_prevous_dollar) {
-                        if (append_char(temp, '$') != 0) {
+                        if (append_char(temp_token, '$') != 0) {
                             print_error("Internal error: ", 1);
                             return 127;
                         }
                     }
 
-                    if (append_char(temp, tokens[index][j_index]) != 0) {
+                    if (append_char(temp_token, tokens[index][j_index]) != 0) {
                         print_error("Internal error: ", 1);
                         return 127;
                     }
@@ -573,14 +592,21 @@ replace_dollars_in_tokens(char **tokens, int token_count) {
                 }
             }
 
+            if (is_prevous_dollar) {
+                 if (append_char(temp_token, '$') != 0) {
+                    print_error("Internal error: ", 1);
+                    return 127;
+                }
+            }
+
             tokens[index] = '\0';
             
-            if ((tokens[index] = strdup(temp)) == NULL) {
+            if ((tokens[index] = strdup(temp_token)) == NULL) {
                 print_error("Could not allocate memory", 1);
                 return 127;
             }
 
-            (void) free(temp);
+            (void) free(temp_token);
         }
     }
 

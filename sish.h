@@ -1,5 +1,3 @@
-#define BUFFERSIZE 4294967296
-
 struct flags {
     int c_flag;
     int x_flag;
