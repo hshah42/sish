@@ -32,6 +32,7 @@ int append_char(char *string, char character);
 int redirect_file_descriptors(char **tokens, int token_count);
 int reiterate_token_count(char **tokens);
 int get_pipe_estimate(char *input_command);
+int replace_dollars_in_tokens(char **tokens, int token_count);
 
 unsigned int get_number_of_digits(int number);
 

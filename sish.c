@@ -363,6 +363,11 @@ execute_command(char *command) {
 
     tokens[index] = '\0';
 
+    if (replace_dollars_in_tokens(tokens, token_count) != 0) {
+        previous_exit_code = 127;
+        return;
+    }
+
     if ((redirection_status = redirect_file_descriptors(tokens, token_count)) != 0) {
         previous_exit_code = redirection_status;
         return;
@@ -457,58 +462,144 @@ perform_directory_change(char *directory) {
     return 0;
 }
 
+
+int
+replace_dollars_in_tokens(char **tokens, int token_count) {
+    int index, j_index, is_prevous_dollar, token_length, pid_length;
+    int new_token_length, prev_exit_code_len, modified;
+    pid_t pid;
+    char *temp, *pid_string, *exit_code_str;
+
+    pid = getpid();
+    is_prevous_dollar = 0;
+    pid_length = get_number_of_digits(pid) + 1;
+    prev_exit_code_len = get_number_of_digits(previous_exit_code) + 1;
+    new_token_length = -1;
+
+    if ((pid_string = malloc(pid_length + 1)) == NULL) {
+        print_error("Could not allocate memory", 1);
+        return 127;        
+    }
+
+    if ((exit_code_str = malloc(prev_exit_code_len + 1)) == NULL) {
+        print_error("Could not allocate memory", 1);
+        return 127;        
+    }
+
+    if (snprintf(pid_string, pid_length, "%i", pid) < 0) {
+        print_error("echo: ", 0);
+        return 127;
+    }
+
+    if (snprintf(exit_code_str, prev_exit_code_len, "%i", previous_exit_code) < 0) {
+        print_error("echo: ", 0);
+        return 127;
+    }
+
+    for (index = 0; index < token_count; index++) {
+        token_length = strlen(tokens[index]);
+        new_token_length = token_length;
+        modified = 0;
+        
+        for (j_index = 0; j_index < token_length; j_index++) {
+            if (tokens[index][j_index] == '$') {
+                if (is_prevous_dollar) {
+                    new_token_length = new_token_length + pid_length;
+                    is_prevous_dollar = 0;
+                    modified = 1;
+                } else {
+                    is_prevous_dollar = 1;
+                }
+            } else if (tokens[index][j_index] == '?') {
+                if (is_prevous_dollar) {
+                    new_token_length = new_token_length + prev_exit_code_len;
+                    is_prevous_dollar = 0;
+                    modified = 1;
+                }
+            } else {
+                new_token_length++;
+                is_prevous_dollar = 0;
+            }
+        }
+
+        if (!modified) {
+            continue;
+        } else {
+            if ((temp = malloc(new_token_length + 1)) == NULL) {
+                print_error("Could not allocate memory", 1);
+                return 127;
+            }
+
+            temp[0] = '\0';
+
+            for (j_index = 0; j_index < token_length; j_index++) {
+                if (tokens[index][j_index] == '$') {
+                    if (is_prevous_dollar) {
+                        if (strcat(temp, pid_string) == NULL) {
+                            print_error("Internal error: ", 1);
+                            return 127;
+                        }
+                        is_prevous_dollar = 0;
+                    } else {
+                        is_prevous_dollar = 1;
+                    }
+                } else if (tokens[index][j_index] == '?') {
+                    if (is_prevous_dollar) {
+                        if (strcat(temp, exit_code_str) == NULL) {
+                            print_error("Internal error: ", 1);
+                            return 127;
+                        }
+                        modified = 1;
+                        is_prevous_dollar = 0;
+                    } else {
+                        if (append_char(temp, '?') != 0) {
+                            print_error("Internal error: ", 1);
+                            return 127;
+                        }
+                    }
+                } else {
+                    if (is_prevous_dollar) {
+                        if (append_char(temp, '$') != 0) {
+                            print_error("Internal error: ", 1);
+                            return 127;
+                        }
+                    }
+
+                    if (append_char(temp, tokens[index][j_index]) != 0) {
+                        print_error("Internal error: ", 1);
+                        return 127;
+                    }
+                    is_prevous_dollar = 0;
+                }
+            }
+
+            tokens[index] = '\0';
+            
+            if ((tokens[index] = strdup(temp)) == NULL) {
+                print_error("Could not allocate memory", 1);
+                return 127;
+            }
+
+            (void) free(temp);
+        }
+    }
+
+    (void) free(pid_string);
+    (void) free(exit_code_str);
+
+    return 0;
+}
+
+
 /**
  * echo like feature is performed on the tokens [1..n-1]
- * $$ and $? are replaces with pid and previous_exit_code respectively.
  **/
 int
 perform_echo(char **tokens, int token_count, int command_length) {
-    char *echo_string, *pid_string, *exit_status_string;
-    int index, total_output_length, temp_length, free_pid, free_exit;
-    pid_t current_pid;
+    char *echo_string;
+    int index, total_output_length;
 
     total_output_length = command_length;
-    current_pid = getpid();
-    free_pid = 0;
-    free_exit = 0;
-
-    /* Determining the size of memory to be allocated since we need to
-       resolve $$ and $? */
-    for (index = 1; index < token_count; index++) {
-        temp_length = 0;
-        if (strcmp(tokens[index], "$$") == 0) {
-            total_output_length -= 2;
-            temp_length = get_number_of_digits(current_pid) + 1;
-            
-            if ((pid_string = malloc(temp_length)) == NULL) {
-                print_error("cd: Could not allocate memory", 0);
-                return 127;
-            }
-
-            free_pid = 1;
-
-            if (snprintf(pid_string, temp_length, "%i", current_pid) < 0) {
-                print_error("cd: ", 0);
-                return 127;
-            }
-        } else if (strcmp(tokens[index], "$?") == 0) {
-            total_output_length -= 2;
-            temp_length = get_number_of_digits(previous_exit_code) + 1;
-
-             if ((exit_status_string = malloc(temp_length)) == NULL) {
-                print_error("cd: Could not allocate memory", 0);
-                return 127;
-            }
-
-            free_exit = 1;
-
-            if (snprintf(exit_status_string, temp_length, "%i", previous_exit_code) < 0) {
-                print_error("cd: ", 0);
-                return 127;
-            }
-        }
-        total_output_length += temp_length;
-    }
 
     if ((echo_string = malloc(total_output_length + 1)) == NULL) {
         print_error("cd: Could not allocate memory", 0);
@@ -524,27 +615,9 @@ perform_echo(char **tokens, int token_count, int command_length) {
             }
         }
 
-        if (strcmp(tokens[index], "$$") == 0) {
-            if (strcat(echo_string, pid_string) == NULL) {
-                print_error("cd: Internal error: ", 0);
-            }
-        } else if (strcmp(tokens[index], "$?") == 0) {
-            if (strcat(echo_string, exit_status_string) == NULL) {
-                print_error("cd: Internal error: ", 0);
-            }
-        } else {
-            if (strcat(echo_string, tokens[index]) == NULL) {
-                print_error("cd: Internal error: ", 0);
-            }
+        if (strcat(echo_string, tokens[index]) == NULL) {
+            print_error("cd: Internal error: ", 0);
         }
-    }
-
-    if (free_pid) {
-        (void) free(pid_string);
-    }
-
-    if (free_exit) {
-        (void) free(exit_status_string);
     }
 
     fprintf(stdout, "%s\n", echo_string);
