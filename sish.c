@@ -23,22 +23,10 @@ handle_sig_int(__attribute__((unused)) int signal) {
     return;
 }
 
-void
-handle_child(__attribute__((unused)) int signal) {
-    int status;
-    (void) waitpid(-1, &status, 0);
-    
-    if (WIFEXITED(status)) {
-        previous_exit_code = WEXITSTATUS(status);
-    }
-
-    return;
-}
-
 int
 main (int argc, char **argv) {
     extern char *optarg;
-    int case_identifier, exit;
+    int case_identifier, exit, status;
     struct flags input_flags;
     size_t input_size_max;
     char *input_command;
@@ -66,11 +54,6 @@ main (int argc, char **argv) {
         print_error("Could not allocate memory", 1);
         return 1;
     }
-
-    if (signal(SIGCHLD, handle_child) == SIG_ERR) {
-        print_error("Could not register signal", 1);
-		return 1;
-	}
 
     while ((case_identifier = getopt(argc, argv, "xc:")) != -1) {
         switch (case_identifier) {
@@ -107,8 +90,14 @@ main (int argc, char **argv) {
             print_error("Could not register signal", 1);
 		    return 1;
 	    }
-        (void) setjmp(JumpBuffer);
         while (exit == 0) {
+            if (waitpid(-1, &status, WNOHANG) > 0) {
+                fprintf(stdout, "Done\n");
+                if (WIFEXITED(status)) {
+                    previous_exit_code = WEXITSTATUS(status);
+                }
+            }
+            (void) setjmp(JumpBuffer);
             fprintf(stdout, "%s$ ", getprogname());
             if (getline(&input_command, &input_size_max, stdin) == -1) {
                 print_error("Could not get input", 1);
@@ -164,9 +153,7 @@ execute_backgroud_process(char *input_command) {
                 (void) execute_command(command);
             }
 
-            fprintf(stdout, "Done: %s\n", command);
-
-            exit(0);
+            exit(-1);
         }
 
         command = strtok_r(NULL, "&", &last);
