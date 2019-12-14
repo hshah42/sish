@@ -23,6 +23,18 @@ handle_sig_int(__attribute__((unused)) int signal) {
     return;
 }
 
+void
+handle_child(__attribute__((unused)) int signal) {
+    int status;
+    (void) waitpid(-1, &status, 0);
+    
+    if (WIFEXITED(status)) {
+        previous_exit_code = WEXITSTATUS(status);
+    }
+
+    return;
+}
+
 int
 main (int argc, char **argv) {
     extern char *optarg;
@@ -55,6 +67,11 @@ main (int argc, char **argv) {
         return 1;
     }
 
+    if (signal(SIGCHLD, handle_child) == SIG_ERR) {
+        print_error("Could not register signal", 1);
+		return 1;
+	}
+
     while ((case_identifier = getopt(argc, argv, "xc:")) != -1) {
         switch (case_identifier) {
         case 'c':
@@ -76,10 +93,14 @@ main (int argc, char **argv) {
     }
 
     if (input_flags.c_flag) {
-        if (strchr(input_command, '|')) {
-            (void) pipleline_input_commands(input_command);
+        if (strchr(input_command, '&')) {
+            (void) execute_backgroud_process(input_command);
         } else {
-            (void) execute_command(input_command);
+            if (strchr(input_command, '|')) {
+                (void) pipleline_input_commands(input_command);
+            } else {
+                (void) execute_command(input_command);
+            }
         }
     } else {
         if (signal(SIGINT, handle_sig_int) == SIG_ERR) {
@@ -101,18 +122,55 @@ main (int argc, char **argv) {
                 break;
             }
 
-            if (strchr(input_command, '|')) {
-                (void) pipleline_input_commands(input_command);
+            if (strchr(input_command, '&')) {
+                (void) execute_backgroud_process(input_command);
             } else {
-                (void) execute_command(input_command);
+                if (strchr(input_command, '|')) {
+                    (void) pipleline_input_commands(input_command);
+                } else {
+                    (void) execute_command(input_command);
+                }
             }
-            
         }
     }
 
     (void) free(input_command);
 
     return 0;
+}
+
+void
+execute_backgroud_process(char *input_command) {
+    char *last, *input_command_copy, *command;
+    pid_t child;
+
+    if ((input_command_copy = strdup(input_command)) == NULL) {
+        print_error("Could not allocate memory", 1);
+        previous_exit_code = 127;
+        return;
+    }
+
+    command = strtok_r(input_command_copy, "&", &last);
+
+    while (command != NULL) {
+        if ((child = fork()) < 0) {
+            print_error("Could not allocate memory", 1);
+            previous_exit_code = 127;
+            return;
+        } else if (child == 0) {
+            if (strchr(input_command, '|')) {
+                (void) pipleline_input_commands(command);
+            } else {
+                (void) execute_command(command);
+            }
+
+            fprintf(stdout, "Done: %s\n", command);
+
+            exit(0);
+        }
+
+        command = strtok_r(NULL, "&", &last);
+    }
 }
 
 void
@@ -647,6 +705,9 @@ perform_echo(char **tokens, int token_count, int command_length) {
     }
 
     fprintf(stdout, "%s\n", echo_string);
+
+    (void) free(echo_string);
+
     return 0;   
 }
 

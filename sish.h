@@ -21,6 +21,7 @@ void handle_sig_int(int signal);
 void reset_file_descriptors();
 void remove_element(char **tokens, int position, int token_count);
 void pipleline_input_commands(char *input_command);
+void execute_backgroud_process(char *input_command);
 
 int get_token_count(char *command);
 int perform_directory_change(char *directory);
