@@ -96,6 +96,7 @@ main (int argc, char **argv) {
                     previous_exit_code = WEXITSTATUS(status);
                 }
             }
+            errno = 0;
             (void) setjmp(JumpBuffer);
             fprintf(stdout, "%s$ ", getprogname());
             if (getline(&input_command, &input_size_max, stdin) == -1) {
@@ -773,8 +774,16 @@ perform_exec(char **tokens) {
 void
 print_error(char *message, int include_prog_name) {
     if (include_prog_name) {
+        if (errno == 0) {
+            fprintf(stderr, "%s: %s\n", getprogname(), message);
+            return;
+        }
         fprintf(stderr, "%s: %s: %s\n", getprogname(), message, strerror(errno));
     } else {
+        if (errno == 0) {
+            fprintf(stderr, "%s\n", message);
+            return;
+        }
         fprintf(stderr, "%s: %s\n", message, strerror(errno));
     }
 }
@@ -869,19 +878,22 @@ redirect_file_descriptors(char **tokens, int token_count) {
 
         switch (mode) {
             case 1:
-                if ((output_file_descriptor =  open(file_name, O_CREAT | O_WRONLY | O_TRUNC, 0644)) < 0) {
+                if ((output_file_descriptor = 
+                        open(file_name, O_CREAT | O_WRONLY | O_TRUNC, 0644)) < 0) {
                     print_error("Could not open file for writing", 1);
                     return 127;
                 }
                 break;
             case 2:
-                 if ((output_file_descriptor =  open(file_name, O_CREAT | O_WRONLY | O_APPEND, 0644)) < 0) {
+                 if ((output_file_descriptor = 
+                        open(file_name, O_CREAT | O_WRONLY | O_APPEND, 0644)) < 0) {
                     print_error("Could not open file for writing", 1);
                     return 127;
                 }
                 break;
             case 3:
-                if ((input_file_descriptor =  open(file_name, O_RDONLY, 0644)) < 0) {
+                if ((input_file_descriptor = 
+                        open(file_name, O_RDONLY, 0644)) < 0) {
                     print_error("Could not open file for writing", 1);
                     return 127;
                 }
