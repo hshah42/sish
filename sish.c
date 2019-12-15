@@ -27,7 +27,6 @@ int
 main (int argc, char **argv) {
     extern char *optarg;
     int case_identifier, exit, status;
-    struct flags input_flags;
     size_t input_size_max;
     char *input_command;
 
@@ -441,6 +440,12 @@ execute_command(char *command) {
 
     token_count = reiterate_token_count(tokens);
 
+    if (input_flags.x_flag) {
+        if (print_command(tokens, token_count) != 0) {
+            return;
+        }
+    }
+
     if (strcmp(tokens[0], "cd") == 0) {
         if (token_count == 1) {
             status = perform_directory_change(NULL);
@@ -459,6 +464,39 @@ execute_command(char *command) {
     (void) free(command_copy);
 
     (void) reset_file_descriptors();
+}
+
+int
+print_command(char **tokens, int token_count) {
+    char *command_print;
+    int index, total_output_length;
+
+    total_output_length = token_count + 1;
+
+    if ((command_print = malloc(total_output_length)) == NULL) {
+        print_error("cd: Could not allocate memory", 0);
+        return 127;
+    }
+
+    command_print[0] = '\0';
+
+    for (index = 0; index < token_count; index++) {
+        if (index > 0) {
+            if (strcat(command_print, " ") == NULL) {
+                print_error("cd: Internal error: ", 0);
+            }
+        }
+
+        if (strcat(command_print, tokens[index]) == NULL) {
+            print_error("cd: Internal error: ", 0);
+        }
+    }
+
+    fprintf(stderr, "+ %s\n", command_print);
+
+    (void) free(command_print);
+
+    return 0;   
 }
 
 /**

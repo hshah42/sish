@@ -13,6 +13,8 @@ int previous_exit_code = 0;
 int default_standard_output;
 int default_standard_input;
 
+struct flags input_flags;
+
 void print_usage();
 void strip_new_line(char *input);
 void execute_command(char *command);
@@ -32,6 +34,7 @@ int redirect_file_descriptors(char **tokens, int token_count);
 int reiterate_token_count(char **tokens);
 int get_pipe_estimate(char *input_command);
 int replace_dollars_in_tokens(char **tokens, int token_count);
+int print_command(char **tokens, int token_count);
 
 unsigned int get_number_of_digits(int number);
 
