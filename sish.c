@@ -108,6 +108,9 @@ main (int argc, char **argv) {
             (void) strip_new_line(input_command);
 
             if (strcmp(input_command, "exit") == 0) {
+                if (input_flags.x_flag) {
+                    fprintf(stderr, "+ exit\n");
+                }
                 break;
             }
 
@@ -771,7 +774,7 @@ perform_exec(char **tokens) {
         execvp(tokens[0], tokens);
         
         if (errno == ENOENT) {
-            fprintf(stderr, "%s: not found\n", tokens[0]);
+            fprintf(stderr, "%s: command not found\n", tokens[0]);
         } else {
             fprintf(stderr, "%s: %s\n", tokens[0], strerror(errno));
         }
