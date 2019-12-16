@@ -128,6 +128,11 @@ main (int argc, char **argv) {
     return 0;
 }
 
+/**
+ * This method is called when the input command contains &.
+ * Hence this tells us that we have commands which need to be
+ * executed in background
+ **/
 void
 execute_backgroud_process(char *input_command) {
     char *last, *input_command_copy, *command;
@@ -160,6 +165,12 @@ execute_backgroud_process(char *input_command) {
     }
 }
 
+/**
+ * pipleline_input_commands is executed when the input
+ * contains pipes. We tokenize based on the pipes and then
+ * connect the stdout to stdin of the following commands
+ * After that the execute_command method is called
+ **/
 void
 pipleline_input_commands(char *input_command) {
     int index, stdout_pipe[2], stdin_fd, stdout_fd;
@@ -234,8 +245,7 @@ pipleline_input_commands(char *input_command) {
                 previous_exit_code = WEXITSTATUS(status);
             }
 
-            /*TODO check for status when exec is success*/
-
+            /*Assign the read end of the pipe to stdin of the following command*/
             stdin_fd = stdout_pipe[0];
         }
         
@@ -560,7 +570,11 @@ perform_directory_change(char *directory) {
     return 0;
 }
 
-
+/**
+ * replace_dollars_in_tokens will iterate over the tokens and
+ * check if the tokens contain $$ or $? to and if they do, they 
+ * will be replaced by pid and previous return code respectively
+ **/
 int
 replace_dollars_in_tokens(char **tokens, int token_count) {
     int index, j_index, is_prevous_dollar, token_length, pid_length;
