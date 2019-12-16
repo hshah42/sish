@@ -1,0 +1,10 @@
+This is a simple shell on NETBSD system.
+usage: sish [ −x] [ −c command]
+
+Difficulties:
+- I/O redirection
+- piplining. Connecting stdout of one command to another command
+
+Test cases other than provided:
+- stdout/stdin redirection for multiple combinations: ls -l>file ls >file -l, ls -l >file>file2 etc
+- if $$$$ is provided then it should be resolved. $$ and $? should not only be resolved in echo but also for other commands

@@ -1,0 +1,227 @@
+commit a6f09462bface291cf7a523f6f17181f685270eb
+Author: Hem Shah <hshah42@stevens.edu>
+Date:   Mon Dec 16 12:24:30 2019 -0500
+
+    print exit when -x is specified while exiting
+
+commit 21a3f7aed12b04abfe79d6ad1b6651e2d7832cb4
+Author: Hem Shah <hshah42@stevens.edu>
+Date:   Mon Dec 16 11:57:51 2019 -0500
+
+    Extracting common code and fixing bug where last command if not background also goes in background
+
+commit 14c57986a1a43526dc7967114579bd27894389f0
+Author: Hem Shah <hshah42@stevens.edu>
+Date:   Mon Dec 16 11:35:24 2019 -0500
+
+    Adding documentation
+
+commit f8e4fd086402e9a887d0d911631a41e1e8281d93
+Author: Hem Shah <hshah42@stevens.edu>
+Date:   Sun Dec 15 21:18:48 2019 -0500
+
+    Fixing error related to input which has >>>
+
+commit 34420ba439223b81a54b98e5c9f938407ec90f09
+Author: Hem Shah <hshah42@stevens.edu>
+Date:   Sun Dec 15 18:48:47 2019 -0500
+
+    fixing error printing
+
+commit 5a410b290192bfa4ae23704c7ce5df9f8c0caeb9
+Author: Hem Shah <hshah42@stevens.edu>
+Date:   Sun Dec 15 18:18:18 2019 -0500
+
+    Adding code to print commands
+
+commit e75f94e2425ccf2a5159db0ee215df9ea10b7bf1
+Author: Hem Shah <hshah42@stevens.edu>
+Date:   Sat Dec 14 14:49:23 2019 -0500
+
+    Fixing child handling. Good parenting
+
+commit 984fbfc22710e6d5a85b0bf89a627a7c6241b0a5
+Author: Hem Shah <hshah42@stevens.edu>
+Date:   Fri Dec 13 20:41:34 2019 -0500
+
+    Adding functionality to add commands to background
+
+commit 02bd64fa942fc53921ff666b9419e2c557a2b71d
+Author: Hem Shah <hshah42@stevens.edu>
+Date:   Fri Dec 13 16:52:54 2019 -0500
+
+    Fixing errors
+
+commit 4ae20c47bfcc371ef0c798bc6f52f581f6ff7210
+Author: Hem Shah <hshah42@stevens.edu>
+Date:   Fri Dec 13 14:14:58 2019 -0500
+
+    Fixing echo since 19903 replacement happens for all command and not just echo
+
+commit 952db0ef52c8c489eea8138ef59842895a285513
+Author: Hem Shah <hshah42@stevens.edu>
+Date:   Thu Dec 12 16:12:54 2019 -0500
+
+    check for child status termination in pipeline execution path
+
+commit 8b2f78e25b0cb68bd8b69da8d4bba1919923bf83
+Author: Hem Shah <hshah42@stevens.edu>
+Date:   Thu Dec 12 16:06:15 2019 -0500
+
+    Adding code to implement pipe in case of -c flag
+
+commit ce309a4a1f067eac61745f825ee2a921861464c4
+Author: Hem Shah <hshah42@stevens.edu>
+Date:   Thu Dec 12 16:03:45 2019 -0500
+
+    Adding feature for pipelining commands
+
+commit a2248bada6b4c74cfb6ad2a2fb31e76a20c627d2
+Author: Hem Shah <hshah42@stevens.edu>
+Date:   Thu Dec 12 00:35:48 2019 -0500
+
+    Fixed issues related to redirection. removed < > >> from tokens so that cases like ls > file -l > file2 ../ can work
+
+commit 2573a322cdc37fff7ec38d600d4bd6dfcbdc8b3f
+Author: Hem Shah <hshah42@stevens.edu>
+Date:   Wed Dec 11 22:50:51 2019 -0500
+
+    Basic error checking
+
+commit d483a1a7d6401e2b0149997fb8496b8a72fa20ad
+Author: Hem Shah <hshah42@stevens.edu>
+Date:   Wed Dec 11 22:20:25 2019 -0500
+
+    Adding support for >, <, >> to be anywhere in the syntax
+
+commit 95e2e5a7561e3e22b20de06d15de779a167dcebc
+Author: Hem Shah <hshah42@stevens.edu>
+Date:   Wed Dec 11 21:10:01 2019 -0500
+
+    Fixing token count issue
+
+commit e6eac01ada7c3fe671ba27ad3845cce983b85a4d
+Author: Hem Shah <hshah42@stevens.edu>
+Date:   Wed Dec 11 19:16:54 2019 -0500
+
+    closing file descriptors
+
+commit 5197543d08d1ab055e614c0be605242be63b3043
+Author: Hem Shah <hshah42@stevens.edu>
+Date:   Wed Dec 11 18:31:05 2019 -0500
+
+    Adding documentation for redirection login
+
+commit 81d4fd3cb2d6b2f241f2240eb10eefe919a9fc91
+Author: Hem Shah <hshah42@stevens.edu>
+Date:   Wed Dec 11 18:17:23 2019 -0500
+
+    Adding code to redirect outputs
+
+commit 2eba757a2c9bdf03deb6f7de10b0fbfe7c269874
+Author: Hem Shah <hshah42@stevens.edu>
+Date:   Wed Dec 11 14:59:25 2019 -0500
+
+    Improving exec function to directly print from child
+
+commit 2d5d7b6f66b620a54fbf7629de6120aadca9599c
+Author: Hem Shah <hshah42@stevens.edu>
+Date:   Tue Dec 10 19:54:40 2019 -0500
+
+    directly printing to terminal in exec rahter than waiting for input from child
+
+commit 4fe7c7d0b08e07568a3be4ac465db84da2bfe842
+Author: Hem Shah <hshah42@stevens.edu>
+Date:   Tue Dec 10 19:21:47 2019 -0500
+
+    Adding tabs as a delimiter to strtok
+
+commit 773141373b6bd6c3750053797eb5c5dbb21b3f32
+Author: Hem Shah <hshah42@stevens.edu>
+Date:   Tue Dec 10 18:59:07 2019 -0500
+
+    Converting exit status from waitpid to exit returned by child
+
+commit 47dd6c6a015f1021217d99f13077a5d24acab4b6
+Author: Hem Shah <hshah42@stevens.edu>
+Date:   Tue Dec 10 18:49:42 2019 -0500
+
+    Fixing error returned from execing a command that does not exits
+
+commit 0e3175b69d300f109dcf9a9095f45463489a415f
+Author: Hem Shah <hshah42@stevens.edu>
+Date:   Tue Dec 10 18:31:18 2019 -0500
+
+    trying out setjump and longjump
+
+commit a4fcc5c7996ea31a204ced6c219659f282e2a6c3
+Author: Hem Shah <hshah42@stevens.edu>
+Date:   Tue Dec 10 18:17:35 2019 -0500
+
+    Freeing all memory and adding documentation to perform_exec function
+
+commit 5d1e1ce25f1112363aa53cdfa8b49f21de194a30
+Author: Hem Shah <hshah42@stevens.edu>
+Date:   Tue Dec 10 18:08:17 2019 -0500
+
+    Fixing exec command as it was using sh runcommand and not exec
+
+commit 3b9c77eb1d742222018a1409e316e1fe1f5dd634
+Author: Hem Shah <hshah42@stevens.edu>
+Date:   Tue Dec 10 17:10:23 2019 -0500
+
+    Adding execution when input is not one of the builtins
+
+commit d12c7edd1d01abf0e165c1e2c6e128ef3992fa36
+Author: Hem Shah <hshah42@stevens.edu>
+Date:   Tue Dec 10 16:01:35 2019 -0500
+
+    Freeing up memory used in echo function
+
+commit a8a989be43f8df455a9ccd71d56660d255da5950
+Author: Hem Shah <hshah42@stevens.edu>
+Date:   Tue Dec 10 15:54:24 2019 -0500
+
+    Adding echo built in echo feature with support for 81159 and 0
+
+commit 1095388941e20d62f9c6e492d4d0a8be5ed086ec
+Author: Hem Shah <hshah42@stevens.edu>
+Date:   Tue Dec 10 14:23:23 2019 -0500
+
+    Adding change directory functionality
+
+commit 1a5233c110d68af038d21e2665b96280e3e82b1c
+Author: Hem Shah <hshah42@stevens.edu>
+Date:   Tue Dec 10 13:36:37 2019 -0500
+
+    Adding signal handler to handle sigint so that program does not exit
+
+commit 38b8dc6457565a5ab5509095d708e879cdd9832e
+Author: Hem Shah <hshah42@stevens.edu>
+Date:   Tue Dec 10 13:20:14 2019 -0500
+
+    Adding documentation
+
+commit c458fa763e19dbba660b80dfa69802ded94879c6
+Author: Hem Shah <hshah42@stevens.edu>
+Date:   Tue Dec 10 13:17:03 2019 -0500
+
+    Fixing seg fault when assigning optarg to input_command. Free only frees memory that has been assigned by malloc or else it throws a seg fault
+
+commit 3ad88d88aeae3a7e903be85ad4114105a88ab294
+Author: Hem Shah <hshah42@stevens.edu>
+Date:   Tue Dec 10 13:12:04 2019 -0500
+
+    Tokenizing input
+
+commit 299af86412625e2ce8b12d2f60808ba3dcc4974d
+Author: Hem Shah <hshah42@stevens.edu>
+Date:   Tue Dec 10 13:00:18 2019 -0500
+
+    created a common function to print error and initial code to tokenize input using strtok_r
+
+commit 48fc30f6d26eaace96154d53f9f4a7b8a2b5176e
+Author: Hem Shah <hshah42@stevens.edu>
+Date:   Tue Dec 10 12:20:48 2019 -0500
+
+    First commit: Added code to read line by line input from terminal and strip the new line at the end
