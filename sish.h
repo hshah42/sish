@@ -25,14 +25,13 @@ void remove_element(char **tokens, int position, int token_count);
 void pipleline_input_commands(char *input_command);
 void execute_backgroud_process(char *input_command);
 
-int get_token_count(char *command);
+int get_char_count(char *command, char *delimiter);
 int perform_directory_change(char *directory);
 int perform_echo(char **tokens, int token_count, int command_length);
 int perform_exec(char **tokens);
 int append_char(char *string, char character);
 int redirect_file_descriptors(char **tokens, int token_count);
 int reiterate_token_count(char **tokens);
-int get_pipe_estimate(char *input_command);
 int replace_dollars_in_tokens(char **tokens, int token_count);
 int print_command(char **tokens, int token_count);
 

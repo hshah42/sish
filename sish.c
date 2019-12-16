@@ -137,6 +137,11 @@ void
 execute_backgroud_process(char *input_command) {
     char *last, *input_command_copy, *command;
     pid_t child;
+    int background_last_command, commands, commands_index;
+
+    background_last_command = 0;
+    commands = 0;
+    commands_index = 0;
 
     if ((input_command_copy = strdup(input_command)) == NULL) {
         print_error("Could not allocate memory", 1);
@@ -144,24 +149,43 @@ execute_backgroud_process(char *input_command) {
         return;
     }
 
+    if ((commands = get_char_count(input_command, "&")) < 0) {
+        print_error("Could not allocate memory", 1);
+        previous_exit_code = 127;
+        return;
+    }
+
+    if (input_command[strlen(input_command) - 1] == '&') {
+        background_last_command = 1;
+    }
+
     command = strtok_r(input_command_copy, "&", &last);
 
     while (command != NULL) {
-        if ((child = fork()) < 0) {
-            print_error("Could not allocate memory", 1);
-            previous_exit_code = 127;
-            return;
-        } else if (child == 0) {
+        if ((commands - commands_index) == 1 && !background_last_command) {
             if (strchr(input_command, '|')) {
                 (void) pipleline_input_commands(command);
             } else {
                 (void) execute_command(command);
             }
+        } else {
+            if ((child = fork()) < 0) {
+                print_error("Could not allocate memory", 1);
+                previous_exit_code = 127;
+                return;
+            } else if (child == 0) {
+                if (strchr(input_command, '|')) {
+                    (void) pipleline_input_commands(command);
+                } else {
+                    (void) execute_command(command);
+                }
 
-            exit(-1);
+                exit(previous_exit_code);
+            }
         }
 
         command = strtok_r(NULL, "&", &last);
+        commands_index++;
     }
 }
 
@@ -181,7 +205,7 @@ pipleline_input_commands(char *input_command) {
 
     index = 0;
 
-    if ((command_count = get_pipe_estimate(input_command)) < 0) {
+    if ((command_count = get_char_count(input_command, "|")) < 0) {
         print_error("Could not allocate memory", 1);
         previous_exit_code = 127;
         return;
@@ -257,27 +281,6 @@ pipleline_input_commands(char *input_command) {
     (void) close(stdout_fd);
 }
 
-int
-get_pipe_estimate(char *input_command) {
-    int count;
-    char *last, *input_command_copy, *command;
-
-    count = 0;
-
-    if ((input_command_copy = strdup(input_command)) == NULL) {
-        return -1;
-    }
-
-    command = strtok_r(input_command_copy, "|", &last);
-
-    while (command != NULL) {
-        count++;
-        command = strtok_r(NULL, "|", &last);
-    }
-
-    return count;
-}
-
 void
 print_usage() {
     fprintf(stderr, "%s: Usage: sish [-c command] [-x]\n", getprogname());
@@ -318,7 +321,7 @@ execute_command(char *command) {
 
     command_length = strlen(command);
 
-    if ((token_count_estimate = get_token_count(command)) < 0) {
+    if ((token_count_estimate = get_char_count(command, " \t<>")) < 0) {
         print_error("Could not allocate memory", 1);
         previous_exit_code = 127;
         return;
@@ -511,12 +514,12 @@ print_command(char **tokens, int token_count) {
 }
 
 /**
- * get_token_count gets the number of tokens
+ * get_char_count gets the number of characters
  * present in the input that are seperated by the
  * space delimiter.
  **/
 int
-get_token_count(char *command) {
+get_char_count(char *command, char *delimiter) {
     char *last, *token, *command_copy;
     int token_count;
 
@@ -527,11 +530,11 @@ get_token_count(char *command) {
         return -1;
     }
 
-    token = strtok_r(command_copy, " \t<>", &last);
+    token = strtok_r(command_copy, delimiter, &last);
 
     while (token != NULL) {
         token_count++;
-        token = strtok_r(NULL, " \t<>", &last);
+        token = strtok_r(NULL, delimiter, &last);
     }
 
     (void) free(command_copy);
