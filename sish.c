@@ -876,6 +876,11 @@ redirect_file_descriptors(char **tokens, int token_count) {
         index++;
         offset += 2;
 
+        if (strchr(file_name, '>') != NULL || strchr(file_name, '<') != NULL ) {
+            print_error("Syntax error: redirection unexpected", 1);
+            return 127;
+        }
+
         switch (mode) {
             case 1:
                 if ((output_file_descriptor = 
